@@ -30,4 +30,12 @@ public class CustomStockRepositoryImpl implements CustomStockRepository {
         .setLockMode(LockModeType.PESSIMISTIC_WRITE)
         .fetchOne());
   }
+
+  @Override
+  public Stock findByIdWithOptimisticLock(Long id) {
+    return queryFactory.selectFrom(stock)
+        .where(stock.id.eq(id))
+        .setLockMode(LockModeType.OPTIMISTIC)
+        .fetchOne();
+  }
 }

@@ -22,41 +22,43 @@ class StockServiceTest {
   @Autowired
   StockService stockService;
 
+  @Autowired
+  StockServiceFacade stockServiceFacade;
+
   @AfterEach
   void cleanUp() {
     stockRepository.deleteAll();
   }
 
   @Test
-  @DisplayName("testName")
   void test_decrease() {
 
     // Given
     Stock stock = new Stock(5L, 19L);
-    stock = stockRepository.save(stock);
+    stockRepository.save(stock);
 
     // When
 
-    stockService.decrease(1L, 9L);
+    stockService.decrease(stock.getId(), 9L);
 
     // Then
-    assertThat(stockRepository.findById(1L).orElseThrow().getQuantity()).isEqualTo(10L);
+    assertThat(stockRepository.findById(stock.getId()).orElseThrow().getQuantity()).isEqualTo(10L);
 
   }
 
   @Test
-  void 스레드_100개_요청() throws InterruptedException {
+  void 모든_재고_감소_요청이_유효하게_적용된다() throws InterruptedException {
 
     // Given
-    int threadNum = 100;
-    Stock stock = new Stock(5L, (long) threadNum);
+    int numberOfThreads = 100;
+    Stock stock = new Stock(5L, (long) numberOfThreads);
     stockRepository.save(stock);
 
-    ExecutorService executorService = Executors.newFixedThreadPool(threadNum);
-    CountDownLatch latch = new CountDownLatch(threadNum);
+    ExecutorService executorService = Executors.newFixedThreadPool(numberOfThreads);
+    CountDownLatch latch = new CountDownLatch(numberOfThreads);
 
     // When
-    for (int i = 0; i < threadNum; i++) {
+    for (int i = 0; i < numberOfThreads; i++) {
       executorService.submit(() -> {
         try {
           stockService.decrease(stock.getId(), 1L);
@@ -66,8 +68,38 @@ class StockServiceTest {
       });
     }
     latch.await();
+
     // Then
     assertThat(stockRepository.findById(stock.getId()).orElseThrow().getQuantity()).isZero();
+  }
+
+  @Test
+  @DisplayName("testName")
+  void 재고_감소_낙관적_락() throws InterruptedException {
+
+    // Given
+    int numberOfThreads = 100;
+    Stock stock = new Stock(5L, (long) numberOfThreads);
+    stockRepository.save(stock);
+
+    ExecutorService executorService = Executors.newFixedThreadPool(numberOfThreads);
+    CountDownLatch latch = new CountDownLatch(numberOfThreads);
+
+    // When
+    for (int i = 0; i < numberOfThreads; i++) {
+      executorService.submit(() -> {
+        try {
+          stockServiceFacade.decrease(stock.getId(), 1L);
+        } finally {
+          latch.countDown();
+        }
+      });
+    }
+    latch.await();
+
+    // Then
+    assertThat(stockRepository.findById(stock.getId()).orElseThrow().getQuantity()).isZero();
+
   }
 
 }

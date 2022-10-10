@@ -8,4 +8,6 @@ public interface CustomStockRepository {
   void decrementCapacity(Long id, Long amount);
 
   Optional<Stock> findByIdForUpdate(Long id);
+
+  Stock findByIdWithOptimisticLock(Long id);
 }
